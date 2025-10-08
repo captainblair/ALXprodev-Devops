@@ -23,7 +23,13 @@ for pokemon in "${pokemon_list[@]}"; do
     fetch_pokemon "$pokemon" &
 done
 
+# Show running jobs
+jobs
+
 # Wait for all background processes to complete
 wait
+
+# Kill any remaining jobs if needed
+jobs -p | xargs -r kill 2>/dev/null
 
 echo "All Pokemon data fetching completed!"
