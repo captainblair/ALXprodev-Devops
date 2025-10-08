@@ -10,13 +10,31 @@ pokemon_list=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 for pokemon in "${pokemon_list[@]}"; do
     echo "Fetching data for $pokemon..."
     
-    # Make API request and save to file
-    curl -s "https://pokeapi.co/api/v2/pokemon/$pokemon" > "pokemon_data/$pokemon.json"
+    # Retry logic - attempt up to 3 times
+    retry_count=0
+    max_retries=3
+    success=false
     
-    # Check if request was successful
-    if [ $? -eq 0 ] && [ -s "pokemon_data/$pokemon.json" ]; then
-        echo "Saved data to pokemon_data/$pokemon.json ✅"
-    else
+    while [ $retry_count -lt $max_retries ] && [ "$success" = false ]; do
+        # Make API request and save to file
+        curl -s "https://pokeapi.co/api/v2/pokemon/$pokemon" > "pokemon_data/$pokemon.json"
+        
+        # Check if request was successful and contains valid JSON
+        if [ $? -eq 0 ] && [ -s "pokemon_data/$pokemon.json" ] && jq empty "pokemon_data/$pokemon.json" 2>/dev/null; then
+            echo "Saved data to pokemon_data/$pokemon.json ✅"
+            success=true
+        else
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                echo "Retry $retry_count for $pokemon..."
+                sleep 2
+            fi
+        fi
+    done
+    
+    # Log error if all retries failed
+    if [ "$success" = false ]; then
+        echo "Error: Failed to fetch data for $pokemon after $max_retries attempts" >> errors.txt
         echo "Failed to fetch data for $pokemon ❌"
     fi
     
